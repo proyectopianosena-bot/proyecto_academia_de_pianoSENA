@@ -1,7 +1,9 @@
+const API_URL = "https://proyecto-academia-de-pianosena.onrender.com";
+
 function mostrarTab(tab) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('activo'));
     document.querySelectorAll('.formulario').forEach(f => f.classList.remove('activo'));
-    
+
     if (tab === 'login') {
         document.querySelectorAll('.tab')[0].classList.add('activo');
         document.getElementById('form-login').classList.add('activo');
@@ -15,16 +17,16 @@ async function iniciarSesion() {
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     const msg = document.getElementById('msg-login');
-    
+
     try {
-        const res = await fetch('/usuarios/login', {
+        const res = await fetch(`${API_URL}/usuarios/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
         });
 
         const data = await res.json();
-        
+
         if (res.ok) {
             localStorage.setItem('token', data.token);
             localStorage.setItem('usuario', JSON.stringify(data.usuario));
@@ -53,9 +55,9 @@ async function registrarse() {
     const password = document.getElementById('reg-password').value;
 
     const msg = document.getElementById('msg-registro');
-    
+
     try {
-        const res = await fetch('/usuarios/registro', {
+        const res = await fetch(`${API_URL}/usuarios/registro`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
 
@@ -67,10 +69,10 @@ async function registrarse() {
         });
 
         const data = await res.json();
-        
+
         if (res.ok) {
             msg.className = 'mensaje exito';
-            msg.textContent = '✦ Cuenta creada correctamente.';
+            msg.textContent = '✦ Cuenta creada correctamente. Revisa tu correo.';
 
             setTimeout(() => {
                 mostrarTab('login');
