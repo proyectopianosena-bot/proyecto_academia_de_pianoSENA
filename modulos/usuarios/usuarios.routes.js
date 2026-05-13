@@ -10,10 +10,15 @@ const db = require('../../db');
 
 // CONFIG EMAIL
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
+    },
+    tls: {
+        rejectUnauthorized: false
     }
 });
 
@@ -45,10 +50,8 @@ router.post('/registro', async (req, res) => {
 
         const passwordEncriptada = await bcrypt.hash(password, 10);
 
-        // TOKEN EMAIL
         const tokenVerificacion = crypto.randomBytes(32).toString('hex');
 
-        // CREAR USUARIO
         const [resultado] = await db.query(
             `INSERT INTO usuarios
             (nombre, email, password, rol, verificado, token_verificacion)
@@ -65,19 +68,16 @@ router.post('/registro', async (req, res) => {
 
         const nuevoId = resultado.insertId;
 
-        // PERFIL ALUMNO
         await db.query(
             'INSERT INTO alumnos (usuario_id, nivel_interes) VALUES (?, ?)',
             [nuevoId, 'principiante']
         );
 
-        // LINK VERIFICACION
         const verificationLink =
             `${process.env.APP_URL}/usuarios/verificar/${tokenVerificacion}`;
 
-        // ENVIAR EMAIL
         await transporter.sendMail({
-            from: process.env.EMAIL_USER,
+            from: `"Academia de Piano" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: 'Verifica tu cuenta - Academia Piano',
             html: `
@@ -85,9 +85,7 @@ router.post('/registro', async (req, res) => {
 
                 <p>Gracias por registrarte.</p>
 
-                <p>
-                    Haz clic aquí para verificar tu cuenta:
-                </p>
+                <p>Haz clic aquí para verificar tu cuenta:</p>
 
                 <a href="${verificationLink}">
                     Verificar cuenta
@@ -135,7 +133,7 @@ router.get('/verificar/:token', async (req, res) => {
 
         res.send(`
             <h1>Cuenta verificada correctamente 🎉</h1>
-            <a href="/login.html">Ir al login</a>
+            <a href="${process.env.APP_URL}/login.html">Ir al login</a>
         `);
 
     } catch (error) {
@@ -172,7 +170,6 @@ router.post('/login', async (req, res) => {
 
         const usuario = rows[0];
 
-        // VERIFICACION EMAIL
         if (!usuario.verificado) {
             return res.status(401).json({
                 error: "Debes verificar tu correo antes de iniciar sesión."
