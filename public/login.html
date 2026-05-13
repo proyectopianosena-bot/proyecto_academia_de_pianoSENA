@@ -47,16 +47,18 @@
         <div class="formulario" id="form-registro">
             <h2 class="form-title">Crear cuenta</h2>
             <span class="form-subtitle-small">✦ Únete a la academia</span>
+
             <input type="text" id="reg-nombre" placeholder="Nombre completo" required>
+
             <input type="email" id="reg-email" placeholder="Correo electrónico" required>
+
             <input type="password" id="reg-password" placeholder="Contraseña" required>
-            <select id="reg-rol">
-                <option value="alumno">Alumno</option>
-                <option value="profesor">Profesor</option>
-                <option value="administrador">Administrador</option>
-            </select>
+
             <div class="mensaje" id="msg-registro"></div>
-            <button type="submit" onclick="registrarse()">Crear cuenta</button>
+
+            <button type="submit" onclick="registrarse()">
+                Crear cuenta
+            </button>
         </div>
 
         <a href="/" class="volver">← Volver al inicio</a>
@@ -65,5 +67,3 @@
     <script src="script.js"></script>
 </body>
 </html>
-
-
