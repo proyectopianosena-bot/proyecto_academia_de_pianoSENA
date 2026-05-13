@@ -21,6 +21,7 @@ const administradorRoutes = require('./modulos/administrador/administrador.route
 app.use('/admin', administradorRoutes);
 
 const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
     console.log(`\n Servidor corriendo en http://localhost:${PORT}\n`);
 });
