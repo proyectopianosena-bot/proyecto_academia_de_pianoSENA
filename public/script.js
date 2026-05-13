@@ -22,18 +22,25 @@ async function iniciarSesion() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
         });
+
         const data = await res.json();
         
         if (res.ok) {
             localStorage.setItem('token', data.token);
             localStorage.setItem('usuario', JSON.stringify(data.usuario));
+
             msg.className = 'mensaje exito';
             msg.textContent = `✦ Bienvenido ${data.usuario.nombre}. Redirigiendo...`;
-            setTimeout(() => window.location.href = '/', 1500);
+
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1500);
+
         } else {
             msg.className = 'mensaje error';
             msg.textContent = '✦ ' + data.error;
         }
+
     } catch {
         msg.className = 'mensaje error';
         msg.textContent = '✦ Error de conexión.';
@@ -44,27 +51,38 @@ async function registrarse() {
     const nombre = document.getElementById('reg-nombre').value;
     const email = document.getElementById('reg-email').value;
     const password = document.getElementById('reg-password').value;
-    const rol = document.getElementById('reg-rol').value;
+
     const msg = document.getElementById('msg-registro');
     
     try {
         const res = await fetch('/usuarios/registro', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nombre, email, password, rol })
+
+            body: JSON.stringify({
+                nombre,
+                email,
+                password
+            })
         });
+
         const data = await res.json();
         
         if (res.ok) {
             msg.className = 'mensaje exito';
-            msg.textContent = '✦ Cuenta creada. ¡Iniciá sesión!';
-            setTimeout(() => mostrarTab('login'), 2000);
+            msg.textContent = '✦ Cuenta creada correctamente.';
+
+            setTimeout(() => {
+                mostrarTab('login');
+            }, 1500);
+
         } else {
             msg.className = 'mensaje error';
             msg.textContent = '✦ ' + data.error;
         }
+
     } catch {
         msg.className = 'mensaje error';
         msg.textContent = '✦ Error de conexión.';
     }
-} 
+}
