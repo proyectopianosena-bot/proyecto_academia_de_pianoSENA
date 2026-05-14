@@ -10,15 +10,10 @@ const db = require('../../db');
 
 // CONFIG EMAIL
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
+    service: 'gmail',
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
-    },
-    tls: {
-        rejectUnauthorized: false
     }
 });
 
@@ -70,7 +65,7 @@ router.post('/registro', async (req, res) => {
 
         await db.query(
             'INSERT INTO alumnos (usuario_id, nivel_interes) VALUES (?, ?)',
-            [nuevoId, 'principiante']
+            [nuevoId, 'Principiante']
         );
 
         const verificationLink =
