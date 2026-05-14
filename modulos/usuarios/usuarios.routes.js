@@ -2,10 +2,29 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
+const dns = require('dns');
 
 const db = require('../../db');
 
-const API_URL = 'https://api.resend.com/emails';
+// FORZAR IPV4 EN RENDER
+dns.setDefaultResultOrder('ipv4first');
+
+// TRANSPORTADOR GMAIL
+const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    requireTLS: true,
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    },
+    tls: {
+        family: 4,
+        rejectUnauthorized: false
+    }
+});
 
 // REGISTRO
 router.post('/registro', async (req, res) => {
@@ -51,30 +70,24 @@ router.post('/registro', async (req, res) => {
             ]
         );
 
-        await fetch(API_URL, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                from: 'Academia Piano <onboarding@resend.dev>',
-                to: email,
-                subject: 'Código de verificación - Academia Piano',
-                html: `
-                    <div style="font-family:Arial;padding:20px;">
-                        <h1>Academia Piano 🎹</h1>
+        // ENVIAR EMAIL
+        await transporter.sendMail({
+            from: `"Academia Piano" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: 'Código de verificación - Academia Piano',
+            html: `
+                <div style="font-family:Arial;padding:20px;">
+                    <h1>Academia Piano 🎹</h1>
 
-                        <p>Tu código de verificación es:</p>
+                    <p>Tu código de verificación es:</p>
 
-                        <h2 style="letter-spacing:5px;">
-                            ${codigo}
-                        </h2>
+                    <h2 style="letter-spacing:5px;">
+                        ${codigo}
+                    </h2>
 
-                        <p>Ingresa este código en la plataforma.</p>
-                    </div>
-                `
-            })
+                    <p>Ingresa este código en la plataforma.</p>
+                </div>
+            `
         });
 
         res.status(201).json({
