@@ -1,32 +1,20 @@
-// modulos/usuarios/usuarios.routes.js
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 
 const db = require('../../db');
 
-// CONFIG EMAIL
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
+const API_URL = 'https://api.resend.com/emails';
 
 // REGISTRO
 router.post('/registro', async (req, res) => {
 
     const { nombre, email, password } = req.body;
 
-    const rol = 'alumno';
-
     if (!nombre || !email || !password) {
         return res.status(400).json({
-            error: "Todos los campos son obligatorios."
+            error: 'Todos los campos son obligatorios.'
         });
     }
 
@@ -39,57 +27,59 @@ router.post('/registro', async (req, res) => {
 
         if (existe.length > 0) {
             return res.status(400).json({
-                error: "Este email ya está registrado."
+                error: 'Este correo ya está registrado.'
             });
         }
 
-        const passwordEncriptada = await bcrypt.hash(password, 10);
+        const passwordHash = await bcrypt.hash(password, 10);
 
-        const tokenVerificacion = crypto.randomBytes(32).toString('hex');
+        const codigo = Math.floor(
+            100000 + Math.random() * 900000
+        ).toString();
 
-        const [resultado] = await db.query(
+        await db.query(
             `INSERT INTO usuarios
             (nombre, email, password, rol, verificado, token_verificacion)
             VALUES (?, ?, ?, ?, ?, ?)`,
             [
                 nombre,
                 email,
-                passwordEncriptada,
-                rol,
+                passwordHash,
+                'alumno',
                 false,
-                tokenVerificacion
+                codigo
             ]
         );
 
-        const nuevoId = resultado.insertId;
+        await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                from: 'Academia Piano <onboarding@resend.dev>',
+                to: email,
+                subject: 'Código de verificación - Academia Piano',
+                html: `
+                    <div style="font-family:Arial;padding:20px;">
+                        <h1>Academia Piano 🎹</h1>
 
-        await db.query(
-            'INSERT INTO alumnos (usuario_id, nivel_interes) VALUES (?, ?)',
-            [nuevoId, 'Principiante']
-        );
+                        <p>Tu código de verificación es:</p>
 
-        const verificationLink =
-            `${process.env.APP_URL}/usuarios/verificar/${tokenVerificacion}`;
+                        <h2 style="letter-spacing:5px;">
+                            ${codigo}
+                        </h2>
 
-        await transporter.sendMail({
-            from: `"Academia de Piano" <${process.env.EMAIL_USER}>`,
-            to: email,
-            subject: 'Verifica tu cuenta - Academia Piano',
-            html: `
-                <h2>Bienvenido a Academia Piano 🎹</h2>
-
-                <p>Gracias por registrarte.</p>
-
-                <p>Haz clic aquí para verificar tu cuenta:</p>
-
-                <a href="${verificationLink}">
-                    Verificar cuenta
-                </a>
-            `
+                        <p>Ingresa este código en la plataforma.</p>
+                    </div>
+                `
+            })
         });
 
         res.status(201).json({
-            mensaje: "Cuenta creada. Revisa tu correo."
+            mensaje: 'Código enviado al correo.',
+            email
         });
 
     } catch (error) {
@@ -97,45 +87,50 @@ router.post('/registro', async (req, res) => {
         console.error('Error en registro:', error);
 
         res.status(500).json({
-            error: "Error interno del servidor."
+            error: 'Error interno del servidor.'
         });
     }
 });
 
-// VERIFICAR EMAIL
-router.get('/verificar/:token', async (req, res) => {
+// VERIFICAR CODIGO
+router.post('/verificar-codigo', async (req, res) => {
 
-    const { token } = req.params;
+    const { email, codigo } = req.body;
 
     try {
 
         const [rows] = await db.query(
-            'SELECT * FROM usuarios WHERE token_verificacion = ?',
-            [token]
+            `SELECT * FROM usuarios
+             WHERE email = ?
+             AND token_verificacion = ?`,
+            [email, codigo]
         );
 
         if (rows.length === 0) {
-            return res.status(400).send('Token inválido.');
+            return res.status(400).json({
+                error: 'Código incorrecto.'
+            });
         }
 
         await db.query(
             `UPDATE usuarios
              SET verificado = true,
                  token_verificacion = NULL
-             WHERE token_verificacion = ?`,
-            [token]
+             WHERE email = ?`,
+            [email]
         );
 
-        res.send(`
-            <h1>Cuenta verificada correctamente 🎉</h1>
-            <a href="${process.env.APP_URL}/login.html">Ir al login</a>
-        `);
+        res.json({
+            mensaje: 'Cuenta verificada correctamente.'
+        });
 
     } catch (error) {
 
         console.error(error);
 
-        res.status(500).send('Error interno del servidor.');
+        res.status(500).json({
+            error: 'Error interno del servidor.'
+        });
     }
 });
 
@@ -143,12 +138,6 @@ router.get('/verificar/:token', async (req, res) => {
 router.post('/login', async (req, res) => {
 
     const { email, password } = req.body;
-
-    if (!email || !password) {
-        return res.status(400).json({
-            error: "Email y contraseña son obligatorios."
-        });
-    }
 
     try {
 
@@ -159,7 +148,7 @@ router.post('/login', async (req, res) => {
 
         if (rows.length === 0) {
             return res.status(401).json({
-                error: "Email o contraseña incorrectos."
+                error: 'Email o contraseña incorrectos.'
             });
         }
 
@@ -167,18 +156,18 @@ router.post('/login', async (req, res) => {
 
         if (!usuario.verificado) {
             return res.status(401).json({
-                error: "Debes verificar tu correo antes de iniciar sesión."
+                error: 'Debes verificar tu correo.'
             });
         }
 
-        const passwordCorrecta = await bcrypt.compare(
+        const ok = await bcrypt.compare(
             password,
             usuario.password
         );
 
-        if (!passwordCorrecta) {
+        if (!ok) {
             return res.status(401).json({
-                error: "Email o contraseña incorrectos."
+                error: 'Email o contraseña incorrectos.'
             });
         }
 
@@ -194,23 +183,20 @@ router.post('/login', async (req, res) => {
         );
 
         res.json({
-            mensaje: "Login exitoso",
             token,
-
             usuario: {
                 id: usuario.id,
                 nombre: usuario.nombre,
-                email: usuario.email,
                 rol: usuario.rol
             }
         });
 
     } catch (error) {
 
-        console.error("Error en login:", error);
+        console.error(error);
 
         res.status(500).json({
-            error: "Error interno del servidor."
+            error: 'Error interno del servidor.'
         });
     }
 });
